@@ -3,6 +3,9 @@ function myFunction(World world, Person me)
 --> domains Void
 --> action {
     you = new(Person, firstName, "Peter", lastName, "Pan");
+    if(a == b && c == d) {
+
+    }
     me.friend := you;
     world.execute(me);
     try (

@@ -3,6 +3,8 @@ import { YmlArgs } from './YmlArgs';
 import { YmlSymbolList } from './YmlSymbolList';
 
 export abstract class AbstractYmlFunction extends AbstractYmlObject {
+    private complexity: number = 1;
+
     /**
      * Domains / return types of the function.
      */
@@ -27,5 +29,13 @@ export abstract class AbstractYmlFunction extends AbstractYmlObject {
     public getShortName() {
         const functionNameSubParts = this.label.split('::');
         return functionNameSubParts[functionNameSubParts.length - 1];
+    }
+
+    public getComplexity() {
+        return this.complexity;
+    }
+
+    public increaseComplexity(incr: number) {
+        this.complexity += incr;
     }
 }

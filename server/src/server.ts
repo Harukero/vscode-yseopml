@@ -10,6 +10,7 @@ import * as glob from 'glob-promise';
 import * as path from 'path';
 import * as url from 'url';
 import {
+    CodeLens,
     CompletionItem,
     CompletionParams,
     createConnection,
@@ -38,6 +39,7 @@ import {
     setDocumentFormatDefaultValues,
 } from './settings/Settings';
 import { YmlKaoFileVisitor, YmlParsingErrorListener } from './visitors';
+import { YmlFunction } from './yml-objects';
 
 let engineModel: EngineModel;
 
@@ -88,6 +90,9 @@ connection.onInitialize(
                 completionProvider: {
                     resolveProvider: true,
                     triggerCharacters: ['.', ':'],
+                },
+                codeLensProvider: {
+                    resolveProvider: false,
                 },
                 hoverProvider: true,
                 definitionProvider: true,
@@ -410,6 +415,25 @@ connection.onCompletion((pos: CompletionParams): CompletionItem[] => {
 connection.onDocumentFormatting((_params) => {
     const doc = documents.get(_params.textDocument.uri);
     return buildDocumentEditList(doc, yseopmlSettings.documentFormat);
+});
+
+connection.onCodeLens((_params) => {
+    const currentFileFunctions = definitionsProvider.filterImplementations(
+        (elem) => elem instanceof YmlFunction && elem.uri === _params.textDocument.uri,
+    );
+    const lenses = [];
+    for (const func of currentFileFunctions) {
+        if (!(func instanceof YmlFunction)) {
+            continue;
+        }
+        const lens = CodeLens.create(func.definitionLocation.range);
+        lens.command = {
+            title: `Cognitive complexity is ${func.getComplexity()}`,
+            command: null,
+        };
+        lenses.push(lens);
+    }
+    return lenses;
 });
 
 /**

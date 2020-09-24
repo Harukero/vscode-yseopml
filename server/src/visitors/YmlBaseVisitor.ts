@@ -16,8 +16,11 @@ import {
 } from '../grammar';
 import { Instruction_multivaluedAssignmentContext } from '../grammar/YmlParser';
 import { IDocumentFormatSettings } from '../settings/Settings';
+import { AbstractYmlFunction } from '../yml-objects/AbstractYmlFunction';
 
 export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements YmlParserVisitor<void> {
+    public currentFunction?: AbstractYmlFunction;
+
     constructor(
         public completionProvider: YmlCompletionItemsProvider,
         public uri: string,
@@ -34,9 +37,6 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
     }
 
     public visitCombinedCondition(node: CombinedConditionContext): void {
-        if (this.isDocumentFormatImpossible()) {
-            return;
-        }
         if (!!node.COND_AND()) {
             const asSymbol = node.COND_AND().symbol;
             this.formatSpacesAroundNode(
@@ -63,8 +63,8 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
     }
 
     public visitComparison(node: ComparisonContext): void {
-        if (this.isDocumentFormatImpossible()) {
-            return;
+        if (!!this.currentFunction) {
+            this.currentFunction.increaseComplexity(1);
         }
         const operator = node.comparisonOperator();
         const operatorStart = operator._start.startIndex;
@@ -80,9 +80,6 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
     }
 
     public visitInstruction_assignment(node: Instruction_assignmentContext) {
-        if (this.isDocumentFormatImpossible()) {
-            return;
-        }
         const equalSymbol = node.EQUAL_ASSIGNMENT().symbol;
         const equalSymbolStart = equalSymbol.startIndex;
         const equalSymbolEnd = equalSymbol.stopIndex;
@@ -98,9 +95,6 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
     }
 
     public visitInstruction_multivaluedAssignment(node: Instruction_multivaluedAssignmentContext) {
-        if (this.isDocumentFormatImpossible()) {
-            return;
-        }
         const equalSymbol = node.MULTIVALUED_ASSIGNMENT().symbol;
         const equalSymbolStart = equalSymbol.startIndex;
         const equalSymbolEnd = equalSymbol.stopIndex;
@@ -116,14 +110,12 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
     }
 
     public visitInstruction(node: InstructionContext) {
-        if (this.isDocumentFormatImpossible()) {
-            return;
-        }
         // There is already a semicolon, or we are not in a block, or we don't want to add semicolons.
         // Adding a semicolon isn't necessary.
         if (
             !!node.SEMICOLON() ||
             !(node.parent instanceof ActionBlockContext) ||
+            !this.docFormatSettings ||
             this.docFormatSettings.semicolonWhenPossible === 'no'
         ) {
             this.visitChildren(node);
@@ -148,6 +140,9 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
         } else if (lastChild === node.instruction_chainedCall()) {
             this.addSemiColon(node.instruction_chainedCall());
         } else if (lastChild === node.instruction_try_catch()) {
+            if (!!this.currentFunction) {
+                this.currentFunction.increaseComplexity(1);
+            }
             this.addSemiColon(node.instruction_try_catch());
         } else if (lastChild === node.instruction_timeCounter()) {
             this.addSemiColon(node.instruction_timeCounter());
@@ -159,14 +154,14 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
     }
 
     public visitInstruction_if(node: Instruction_ifContext): void {
-        if (this.isDocumentFormatImpossible()) {
-            return;
+        if (!!this.currentFunction) {
+            this.currentFunction.increaseComplexity(1);
         }
 
         const ifSymbolEnd = node.IF().symbol.stopIndex;
         const openParStart = node.OPEN_PAR().symbol.startIndex;
         let sameLine = node.IF().symbol.line === node.OPEN_PAR().symbol.line;
-        if (this.docFormatSettings.spaceBetweenKeywordAndParenthesis === 'yes') {
+        if (!!this.docFormatSettings && this.docFormatSettings.spaceBetweenKeywordAndParenthesis === 'yes') {
             this.setOneSpaceInterval(ifSymbolEnd, openParStart, sameLine);
         } else {
             this.removeSpaceInterval(ifSymbolEnd, openParStart);
@@ -196,6 +191,9 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
         leftAndStartSameLine: boolean,
         endAndRightSameLine: boolean,
     ) {
+        if (this.isDocumentFormatImpossible()) {
+            return;
+        }
         const leftEnd = left.stop;
         const rightStart = right.start;
 
@@ -208,6 +206,9 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
      * Do nothing if there is already a zero space distance.
      */
     private removeSpaceInterval(leftElementEnd: number, rightElementStart: number) {
+        if (this.isDocumentFormatImpossible()) {
+            return;
+        }
         if (rightElementStart - leftElementEnd === 1) {
             // There is already no space between the two elements.
             return;
@@ -225,6 +226,9 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
      * Do nothing if there is already a one space distance or if the two elements are not on the same line.
      */
     private setOneSpaceInterval(leftElementEnd: number, rightElementStart: number, sameLine: boolean): void {
+        if (this.isDocumentFormatImpossible()) {
+            return;
+        }
         // Don't force one space interval when the left element and the right element are not on the same line.
         if (!sameLine) {
             return;
@@ -252,6 +256,9 @@ export class YmlBaseVisitor extends AbstractParseTreeVisitor<void> implements Ym
 
     /** Add an edit that adds a semicolon right after the provided node. */
     private addSemiColon(node: ParserRuleContext): void {
+        if (this.isDocumentFormatImpossible()) {
+            return;
+        }
         this.filePossibleEdits.push(TextEdit.insert(this.document.positionAt(node.stop.stopIndex + 1), ';'));
     }
 

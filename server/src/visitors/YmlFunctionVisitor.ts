@@ -9,7 +9,8 @@ import {
     VariableBlockContentContext,
 } from '../grammar';
 import { IDocumentFormatSettings } from '../settings/Settings';
-import { AbstractYmlObject, YmlArgument, YmlFunction, YmlObjectInstance } from '../yml-objects';
+import { YmlArgument, YmlFunction, YmlObjectInstance } from '../yml-objects';
+import { AbstractYmlFunction } from '../yml-objects/AbstractYmlFunction';
 import { YmlBaseVisitor } from './YmlBaseVisitor';
 import { getDocumentation, getType } from './YmlVisitorHelper';
 
@@ -27,7 +28,7 @@ export class YmlFunctionVisitor extends YmlBaseVisitor {
 
     private functionName: string;
 
-    private func: AbstractYmlObject;
+    private func: AbstractYmlFunction;
 
     constructor(
         completionProvider: YmlCompletionItemsProvider,
@@ -78,6 +79,7 @@ export class YmlFunctionVisitor extends YmlBaseVisitor {
         /**
          * Look for the function's arguments and local variables.
          */
+        this.currentFunction = this.func;
         this.visitChildren(node);
     }
 
