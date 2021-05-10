@@ -3,6 +3,7 @@
 ## X.X.X (YYYY-MM-DD)
 
 -   _Go To Definition_ now works for class names too.
+-   Display a warning when a local variable or a function argument is unused.
 
 ## 1.13.0 (2021-02-12)
 
